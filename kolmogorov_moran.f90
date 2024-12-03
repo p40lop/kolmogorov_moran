@@ -292,7 +292,7 @@ contains
         implicit none
         real(dp), intent(in) :: scalar(0:xsize - 1, 0:ysize - 1)
         real(dp) :: local_moran_index(0:xsize - 1, 0:ysize - 1)
-        integer :: iix, iiy, xnew, ynew
+        integer :: iix, iiy, iid, xnew, ynew
         real(dp) :: mean, variance
 
         mean = sum(scalar)/size(scalar)
@@ -301,7 +301,7 @@ contains
 
         do iiy = 0, ysize - 1
             do iix = 0, xsize - 1
-                do id = 1, 8
+                do iid = 1, 8
                     xnew = modulo(iix + nint(velocities(id, 0)), xsize)
                     ynew = modulo(iiy + nint(velocities(id, 1)), ysize)
                     local_moran_index(iix, iiy) = local_moran_index(iix, iiy) + weights(id)*(scalar(xnew, ynew) - mean)
