@@ -62,7 +62,7 @@ program kolmogorov_moran
     end if
     command = trim(adjustl(command))
 
-    tau = 0.50009_dp
+    tau = 0.8_dp
 
     tau_loop: do while (tau > 0.5_dp)
 
@@ -94,7 +94,7 @@ program kolmogorov_moran
         f = feq
 
         forcing = 0.0_dp
-        r = 2*pi/ysize
+        r = 2.0_dp*pi/ysize
         do iy = 0, ysize - 1
             forcing(:, iy, 0) = dampening*sin(iy*r)
         end do
@@ -120,7 +120,7 @@ program kolmogorov_moran
         ! call execute_command_line("mkdir -p '"//dirpath//"/time/'")
 
         open (unit=20, file=dirpath//'macro.dat', access="append")
-        moran = local_moran(u(:, :, 0))
+        moran = local_moran(u(:, :, 0), velocities, weights)
         print *, sum(moran)
         call write_data(t)
 
@@ -143,7 +143,7 @@ program kolmogorov_moran
                 end do
             end do
             if (mod(t, save_interval) == 0) then
-                moran = local_moran(u(:, :, 0))
+                moran = local_moran(u(:, :, 0), velocities, weights)
                 write (20, "(I0.6,x,SP,*(es15.7e3,x))") t, sum(moran)
                 call write_data(t)
             end if
@@ -151,7 +151,7 @@ program kolmogorov_moran
         end do time_loop
         print *, sum(rho)
 
-        moran = local_moran(u(:, :, 0))
+        moran = local_moran(u(:, :, 0), velocities, weights)
         print *, sum(moran)
         write (20, "(I0.6,x,SP,*(es15.7e3,x))") t, sum(moran)
         call write_data(t)
@@ -286,12 +286,40 @@ contains
         source_res = source_res*(1.0_dp - h_invtau)
     end function source
 
-    function local_moran(scalar) result(local_moran_index)
+    ! function local_moran(scalar) result(local_moran_index)
+    !     use, intrinsic :: iso_fortran_env, only: dp => real64
+    !     use lb_consts
+    !     implicit none
+    !     real(dp), intent(in) :: scalar(0:xsize - 1, 0:ysize - 1)
+    !     real(dp) :: local_moran_index(0:xsize - 1, 0:ysize - 1)
+    !     integer :: iix, iiy, iid, xnew, ynew
+    !     real(dp) :: mean, variance
+
+    !     mean = sum(scalar)/size(scalar)
+    !     variance = sum((scalar - mean)**2)/(size(scalar) - 1)
+    !     local_moran_index = 0.0_dp
+
+    !     do iiy = 0, ysize - 1
+    !         do iix = 0, xsize - 1
+    !             do iid = 1, 8
+    !                 xnew = modulo(iix + nint(velocities(iid, 0)), xsize)
+    !                 ynew = modulo(iiy + nint(velocities(iid, 1)), ysize)
+    !                 local_moran_index(iix, iiy) = local_moran_index(iix, iiy) + weights(iId)*(scalar(xnew, ynew) - mean)
+    !             end do
+
+    !             local_moran_index(iix, iiy) = local_moran_index(iix, iiy)*(scalar(iix, iiy) - mean)/variance
+
+    !         end do
+    !     end do
+
+    ! end function local_moran
+    function local_moran(scalar, moran_velocities, moran_weights) result(local_moran_index)
         use, intrinsic :: iso_fortran_env, only: dp => real64
-        use lb_consts
         implicit none
         real(dp), intent(in) :: scalar(0:xsize - 1, 0:ysize - 1)
         real(dp) :: local_moran_index(0:xsize - 1, 0:ysize - 1)
+        real(dp) :: moran_velocities(:, :)
+        real(dp) :: moran_weights(:)
         integer :: iix, iiy, iid, xnew, ynew
         real(dp) :: mean, variance
 
@@ -301,16 +329,16 @@ contains
 
         do iiy = 0, ysize - 1
             do iix = 0, xsize - 1
-                do iid = 1, 8
-                    xnew = modulo(iix + nint(velocities(id, 0)), xsize)
-                    ynew = modulo(iiy + nint(velocities(id, 1)), ysize)
-                    local_moran_index(iix, iiy) = local_moran_index(iix, iiy) + weights(id)*(scalar(xnew, ynew) - mean)
+                ! SKIP the 0 velocity --------------|
+                do iid = lbound(moran_weights, 1) + 1, ubound(moran_weights, 1)
+                    xnew = modulo(iix + nint(moran_velocities(iid, lbound(moran_velocities, 2))), xsize)
+                    ynew = modulo(iiy + nint(moran_velocities(iid, ubound(moran_velocities, 2))), ysize)
+                    local_moran_index(iix, iiy) = local_moran_index(iix, iiy) + moran_weights(iid)*(scalar(xnew, ynew) - mean)
                 end do
-
-                local_moran_index(iix, iiy) = local_moran_index(iix, iiy)*(scalar(iix, iiy) - mean)/variance
 
             end do
         end do
+        local_moran_index = local_moran_index*(scalar - mean)/variance
 
     end function local_moran
 
