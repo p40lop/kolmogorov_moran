@@ -94,7 +94,7 @@ program kolmogorov_moran
         f = feq
 
         forcing = 0.0_dp
-        r = 2.0_dp*pi/ysize
+        r = 2.0_dp*pi/(ysize - 1)
         do iy = 0, ysize - 1
             forcing(:, iy, 0) = dampening*sin(iy*r)
         end do
